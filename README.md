@@ -51,9 +51,9 @@ See `docker-compose.yaml` for complete list of configurable options.
 
 ## 📂 Volumes
 
-- `./rootfs/data/forgejo` - Data storage
-- `./rootfs/config/forgejo` - Data storage
-- `./rootfs/data/db/postgres/forgejo` - Data storage
+- `./volumes/data/forgejo` - Data storage
+- `./volumes/config/forgejo` - Data storage
+- `./volumes/data/db/postgres/forgejo` - Data storage
 
 ## 🔐 Security
 
