@@ -16,6 +16,8 @@ services:
     logging: *default-logging
     networks:
       - forgejo
+      - proxy
+      - cloudflare
     ports:
       - "172.17.0.1:3002:3000"
       - "172.17.0.1:2222:22"
@@ -31,6 +33,8 @@ services:
       FORGEJO__server__SSH_DOMAIN: ${BASE_HOST_NAME:-localhost}
       FORGEJO__server__SSH_PORT: "2222"
       FORGEJO__security__SECRET_KEY: ${APP_SECRET_KEY:-changeme_secret_key_min_32_chars}
+      CONTAINER_NAME: forgejo-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
     volumes:
       - ./volumes/data/forgejo:/data
     depends_on:
@@ -40,6 +44,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - 'traefik.enable=true'
+      - 'cloudflare.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'cloudflare.service=http://forgejo-app:3000'
+      - 'cloudflare.hostname=forgejo.${CLOUDFLARE_ZONE_NAME:-}'
+      - 'traefik.http.routers.forgejo-app.entrypoints=http'
+      - 'traefik.http.routers.forgejo-app-secure.tls=true'
+      - 'traefik.http.routers.forgejo-app.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.middlewares.forgejo-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.forgejo-app.middlewares=forgejo-app-https-redirect'
+      - 'traefik.http.routers.forgejo-app-secure.entrypoints=https'
+      - 'traefik.http.routers.forgejo-app-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.routers.forgejo-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.forgejo-app-secure.service=forgejo-app'
+      - 'traefik.http.services.forgejo-app.loadbalancer.server.port=3000'
 
   forgejo-db:
     image: postgres:latest
@@ -54,6 +74,7 @@ services:
       POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-forgejo}
       POSTGRES_USER: ${DB_USER_NAME:-forgejo}
       POSTGRES_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
+      CONTAINER_NAME: forgejo-db
     volumes:
       - ./volumes/data/db/postgres/forgejo:/var/lib/postgresql/data
     healthcheck:
@@ -66,3 +87,7 @@ networks:
   forgejo:
     name: forgejo
     external: false
+  proxy:
+    external: true
+  cloudflare:
+    external: true
